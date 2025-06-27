@@ -859,56 +859,54 @@
                 }
             });
 
-            // Tambah menu sidebar dan section Tempat Sampah (admin only) dalam satu event DOMContentLoaded
-            document.addEventListener('DOMContentLoaded', function() {
-                // Tambahkan menu Tempat Sampah ke sidebar jika belum ada
-                const sidebar = document.querySelector('.sidebar');
-                if (sidebar && !document.getElementById('recycleBinMenu')) {
-                    const recycleBinMenu = document.createElement('a');
-                    recycleBinMenu.href = '#';
-                    recycleBinMenu.className = 'nav-link admin-only-menu d-none';
-                    recycleBinMenu.id = 'recycleBinMenu';
-                    recycleBinMenu.dataset.sectionId = 'recycle-bin-section';
-                    recycleBinMenu.innerHTML = '<i class="fas fa-trash-restore"></i> Tempat Sampah';
-                    sidebar.appendChild(recycleBinMenu);
-                }
-                // Tambah section untuk Tempat Sampah di main content jika belum ada
-                const mainContent = document.querySelector('.col-md-10.p-4');
-                if (mainContent && !document.getElementById('recycle-bin-section')) {
-                    const recycleBinSection = document.createElement('div');
-                    recycleBinSection.id = 'recycle-bin-section';
-                    recycleBinSection.className = 'content-section';
-                    recycleBinSection.style.display = 'none';
-                    recycleBinSection.innerHTML = `
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-danger text-white d-flex align-items-center">
-                                <i class="fas fa-trash-restore me-2"></i>
-                                <h4 class="mb-0">Tempat Sampah Produk</h4>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-striped">
-                                        <thead>
-                                            <tr>
-                                                <th>ID Asli</th>
-                                                <th>Nama</th>
-                                                <th>Kategori</th>
-                                                <th>Harga</th>
-                                                <th>Stok</th>
-                                                <th>Gambar</th>
-                                                <th>Dihapus Pada</th>
-                                                <th>Aksi</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="recycle-bin-table"></tbody>
-                                    </table>
-                                </div>
+            // Tambahkan menu Tempat Sampah ke sidebar jika belum ada
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar && !document.getElementById('recycleBinMenu')) {
+                const recycleBinMenu = document.createElement('a');
+                recycleBinMenu.href = '#';
+                recycleBinMenu.className = 'nav-link admin-only-menu d-none';
+                recycleBinMenu.id = 'recycleBinMenu';
+                recycleBinMenu.dataset.sectionId = 'recycle-bin-section';
+                recycleBinMenu.innerHTML = '<i class="fas fa-trash-restore"></i> Tempat Sampah';
+                sidebar.appendChild(recycleBinMenu);
+            }
+
+            // Tambah section untuk Tempat Sampah di main content jika belum ada
+            const mainContent = document.querySelector('.col-md-10.p-4');
+            if (mainContent && !document.getElementById('recycle-bin-section')) {
+                const recycleBinSection = document.createElement('div');
+                recycleBinSection.id = 'recycle-bin-section';
+                recycleBinSection.className = 'content-section';
+                recycleBinSection.style.display = 'none';
+                recycleBinSection.innerHTML = `
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-danger text-white d-flex align-items-center">
+                            <i class="fas fa-trash-restore me-2"></i>
+                            <h4 class="mb-0">Tempat Sampah Produk</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Asli</th>
+                                            <th>Nama</th>
+                                            <th>Kategori</th>
+                                            <th>Harga</th>
+                                            <th>Stok</th>
+                                            <th>Gambar</th>
+                                            <th>Dihapus Pada</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recycle-bin-table"></tbody>
+                                </table>
                             </div>
                         </div>
-                    `;
-                    mainContent.appendChild(recycleBinSection);
-                }
-            });
+                    </div>
+                `;
+                mainContent.appendChild(recycleBinSection);
+            }
         });
 
         // --- Fungsi Manajemen Autentikasi dan UI ---
@@ -976,8 +974,17 @@
         // Memperbarui visibilitas menu sidebar berdasarkan peran pengguna
         function updateSidebarMenu() {
             document.querySelectorAll('.admin-only-menu').forEach(item => {
+                // Tampilkan menu produk & tempat sampah hanya untuk admin,
+                // tapi menu transaksi & laporan juga untuk kasir
+                const sectionId = item.getAttribute('data-section-id');
                 if (currentUserRole === 'admin') {
                     item.classList.remove('d-none');
+                } else if (currentUserRole === 'kasir') {
+                    if (sectionId === 'transactions-section' || sectionId === 'reports-section') {
+                        item.classList.remove('d-none');
+                    } else {
+                        item.classList.add('d-none');
+                    }
                 } else {
                     item.classList.add('d-none');
                 }
@@ -1015,22 +1022,29 @@
                     break;
                 case 'products-section':
                     if (currentUserRole === 'admin') {
-                        loadProducts(); // Memuat produk untuk tabel admin (productsCache akan diperbarui)
-                        loadProductsTable(); // Memuat tabel manajemen produk
+                        loadProducts();
+                        loadProductsTable();
                     } else {
                         Swal.fire('Akses Ditolak!', 'Anda tidak memiliki hak akses untuk halaman ini.', 'error');
-                        showSection('pos-section'); // Kembali ke POS jika tidak punya akses
+                        showSection('pos-section');
                     }
                     break;
                 case 'transactions-section':
-                    loadTransactionsTable();
+                    // Kasir dan admin boleh akses
+                    if (currentUserRole === 'admin' || currentUserRole === 'kasir') {
+                        loadTransactionsTable();
+                    } else {
+                        Swal.fire('Akses Ditolak!', 'Anda tidak memiliki hak akses untuk halaman ini.', 'error');
+                        showSection('pos-section');
+                    }
                     break;
                 case 'reports-section':
-                    if (currentUserRole === 'admin') {
+                    // Kasir dan admin boleh akses
+                    if (currentUserRole === 'admin' || currentUserRole === 'kasir') {
                         updateReports();
                     } else {
                         Swal.fire('Akses Ditolak!', 'Anda tidak memiliki hak akses untuk halaman ini.', 'error');
-                        showSection('pos-section'); // Kembali ke POS jika tidak punya akses
+                        showSection('pos-section');
                     }
                     break;
                 case 'recycle-bin-section':
@@ -1735,11 +1749,6 @@
 
         // Memperbarui data laporan
         async function updateReports() {
-            if (currentUserRole !== 'admin') {
-                // Notifikasi sudah ditangani oleh showSection, tapi ini sebagai fallback
-                return;
-            }
-
             try {
                 const reports = await apiFetch('get_reports');
                 document.getElementById('daily-sales').textContent = formatRupiah(reports.daily_sales || 0);
