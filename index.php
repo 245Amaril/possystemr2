@@ -992,24 +992,24 @@
                 const imageUrl = product.image_url ? `uploads/${product.image_url}` : `uploads/no_image.svg`;
 
                 const productCard = `
-<div class="col-md-4 mb-3">
-    <div class="card product-card h-100" onclick="addToCart(${product.id})">
-        <div class="card-body text-center">
-            <div class="image-text-overlay">
-                <img src="${imageUrl}" class="product-image" alt="${product.name}">
-                
-                <div class="stock-badge-overlay">
-                    ${product.stock}
-                </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card product-card h-100" onclick="addToCart(${product.id})">
+                            <div class="card-body text-center">
+                                <div class="image-text-overlay">
+                                    <img src="${imageUrl}" class="product-image" alt="${product.name}">
+                                    
+                                    <div class="stock-badge-overlay">
+                                        ${product.stock}
+                                    </div>
 
-                <div class="text-overlay">
-                    <h6 class="card-title mb-1" style="color: white; font-weight: bold;">${product.name}</h6>
-                    <strong style="color: #66ff99; font-size: 1.1em;">${formatRupiah(product.price)}</strong>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+                                    <div class="text-overlay">
+                                        <h6 class="card-title mb-1" style="color: white; font-weight: bold;">${product.name}</h6>
+                                        <strong style="color: #66ff99; font-size: 1.1em;">${formatRupiah(product.price)}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 `;
                 grid.innerHTML += productCard;
             });
@@ -1152,7 +1152,7 @@
             formData.append('category', document.getElementById('productCategory').value);
             formData.append('price', document.getElementById('productPrice').value);
             formData.append('stock', document.getElementById('productStock').value);
-            formData.append('image', document.getElementById('productImage').value);
+            formData.append('image', document.getElementById('productImage').files[0]);
             
             try {
                 const data = await apiFetch('update_product', 'POST', formData);
@@ -1160,11 +1160,10 @@
                     bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
                     loadProducts(); // Muat ulang semua produk dan perbarui tampilan POS/tabel
                     loadProductsTable(); // Memuat ulang tabel manajemen produk
-                    // Tampilkan notifikasi sukses menggunakan SweetAlert2
                     Swal.fire('Berhasil!', 'Produk berhasil diperbarui!', 'success').then(() => {
-                        // Refresh halaman tanpa reload penuh, hanya reload section produk
                         showSection('products-section');
                     });
+                    showSection('products-section');
                 } else {
                     Swal.fire('Error!', 'Gagal memperbarui produk: ' + (data.error || 'Unknown error'), 'error');
                 }

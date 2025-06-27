@@ -12,6 +12,37 @@ if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0775, true); // Buat direktori jika belum ada
 }
 
+// Fungsi untuk handle upload gambar, return nama file jika sukses, null jika tidak ada upload, false jika gagal
+function handle_image_upload($uploadDir, $current_image_url = null) {
+    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+        $fileTmpPath = $_FILES['image']['tmp_name'];
+        $fileName = $_FILES['image']['name'];
+        $fileNameCmps = explode('.', $fileName);
+        $fileExtension = strtolower(end($fileNameCmps));
+        $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg');
+        if (!in_array($fileExtension, $allowedfileExtensions)) {
+            echo json_encode(['success' => false, 'error' => 'Ekstensi file tidak diizinkan. Hanya JPG, JPEG, PNG, GIF yang diizinkan.']);
+            exit;
+        }
+        $newFileName = uniqid() . '_' . md5(time() . $fileName) . '.' . $fileExtension;
+        $destPath = $uploadDir . $newFileName;
+        if (!file_exists($fileTmpPath)) {
+            echo json_encode(['success' => false, 'error' => 'File upload tidak ditemukan di server (tmp).']);
+            exit;
+        }
+        if (move_uploaded_file($fileTmpPath, $destPath)) {
+            // Hapus gambar lama jika ada (khusus update)
+            if ($current_image_url && file_exists($uploadDir . $current_image_url)) {
+                unlink($uploadDir . $current_image_url);
+            }
+            return $newFileName;
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Gagal mengunggah gambar. Pastikan folder uploads dapat ditulis.']);
+            exit;
+        }
+    }
+    return null; // Tidak ada upload
+}
 
 // Mendapatkan aksi yang diminta dari frontend
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -46,33 +77,8 @@ switch ($action) {
             exit;
         }
 
-        // Handle file upload
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $fileTmpPath = $_FILES['image']['tmp_name'];
-            $fileName = $_FILES['image']['name'];
-            // $fileSize = $_FILES['image']['size']; // Anda bisa menambahkan validasi ukuran file
-            // $fileType = $_FILES['image']['type']; // Anda bisa menambahkan validasi tipe MIME
-
-            $fileNameCmps = explode(".", $fileName);
-            $fileExtension = strtolower(end($fileNameCmps));
-
-            $newFileName = uniqid() . '_' . md5(time() . $fileName) . '.' . $fileExtension; // Generate nama unik yang lebih kuat
-            $destPath = $uploadDir . $newFileName;
-
-            // Allowed file extensions
-            $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg');
-            if (in_array($fileExtension, $allowedfileExtensions)) {
-                if (move_uploaded_file($fileTmpPath, $destPath)) {
-                    $image_url = $newFileName; // Simpan hanya nama filenya
-                } else {
-                    echo json_encode(['success' => false, 'error' => 'Gagal mengunggah gambar. Pastikan direktori "uploads" ada dan dapat ditulis.']);
-                    exit;
-                }
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Ekstensi file tidak diizinkan. Hanya JPG, JPEG, PNG, GIF yang diizinkan.']);
-                exit;
-            }
-        }
+        // Handle file upload dengan fungsi baru
+        $image_url = handle_image_upload($uploadDir);
 
         // Menggunakan prepared statement untuk keamanan (mencegah SQL Injection)
         // Tambahkan image_url ke query INSERT
@@ -119,34 +125,12 @@ switch ($action) {
         }
         $stmt_get_current_image->close();
 
-        $image_url_to_save = $current_image_url; // Default: pertahankan gambar yang ada
-
-        // 2. Handle file upload (jika ada file baru diunggah)
-        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-            $fileTmpPath = $_FILES['image']['tmp_name'];
-            $fileName = $_FILES['image']['name'];
-            $fileNameCmps = explode(".", $fileName);
-            $fileExtension = strtolower(end($fileNameCmps));
-
-            $newFileName = uniqid() . '_' . md5(time() . $fileName) . '.' . $fileExtension;
-            $destPath = $uploadDir . $newFileName;
-
-            $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg');
-            if (in_array($fileExtension, $allowedfileExtensions)) {
-                if (move_uploaded_file($fileTmpPath, $destPath)) {
-                    // Jika upload berhasil, hapus gambar lama (jika ada)
-                    if ($current_image_url && file_exists($uploadDir . $current_image_url)) {
-                        unlink($uploadDir . $current_image_url); // Hapus file gambar lama
-                    }
-                    $image_url_to_save = $newFileName; // Update ke nama file baru
-                } else {
-                    echo json_encode(['success' => false, 'error' => 'Gagal mengunggah gambar baru.']);
-                    exit;
-                }
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Ekstensi file gambar tidak diizinkan. Hanya JPG, JPEG, PNG, GIF yang diizinkan.']);
-                exit;
-            }
+        // 2. Handle file upload (jika ada file baru diunggah) dengan fungsi baru
+        $uploaded_image = handle_image_upload($uploadDir, $current_image_url);
+        if ($uploaded_image !== null) {
+            $image_url_to_save = $uploaded_image;
+        } else {
+            $image_url_to_save = $current_image_url;
         }
 
         // Gunakan prepared statement untuk UPDATE
@@ -156,8 +140,8 @@ switch ($action) {
         $stmt->bind_param("ssdssi", $name, $category, $price, $stock, $image_url_to_save, $id);
 
         if ($stmt->execute()) {
-            // Check if any rows were affected (product found and updated)
-            if ($stmt->affected_rows > 0) {
+            // Jika tidak ada baris yang terpengaruh, cek apakah gambar berubah
+            if ($stmt->affected_rows > 0 || ($image_url_to_save !== $current_image_url)) {
                 echo json_encode(['success' => true, 'message' => 'Produk berhasil diperbarui.', 'image_url' => $image_url_to_save]);
             } else {
                 echo json_encode(['success' => false, 'error' => 'Tidak ada perubahan yang dibuat atau produk tidak ditemukan.']);
