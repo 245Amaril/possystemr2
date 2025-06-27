@@ -3,6 +3,8 @@
 header('Content-Type: application/json'); // Pastikan ini ada di paling atas untuk output JSON
 
 // Memasukkan file koneksi database
+// Memasukkan file koneksi database
+// Memasukkan file koneksi database
 require 'db_connect.php'; // Pastikan file ini ada dan berisi koneksi $conn
 
 // Direktori untuk menyimpan gambar produk

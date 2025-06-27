@@ -30,9 +30,6 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             transition: transform 0.2s;
         }
-        .card:hover {
-            transform: translateY(-2px);
-        }
         .product-card {
             cursor: pointer;
             transition: all 0.3s;
@@ -133,6 +130,8 @@
 </head>
 <body>
     <!-- Authentication Container (Login/Register) -->
+    <!-- Authentication Container (Login/Register) -->
+    <!-- Authentication Container (Login/Register) -->
     <div id="authContainer" class="auth-container">
         <div class="auth-card text-center">
             <h2 class="mb-4" id="authTitle">Login</h2>
@@ -152,7 +151,7 @@
                 <p>Belum punya akun? <a href="#" id="showRegister">Daftar sekarang</a></p>
             </form>
 
-            <!-- Register Form (hidden by default) -->
+            <!-- Register Form -->
             <form id="registerForm" class="auth-form d-none">
                 <div class="mb-3 text-start">
                     <label for="registerUsername" class="form-label">Username</label>
@@ -183,9 +182,10 @@
             <!-- Sidebar -->
             <div class="col-md-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <h4 class="text-white"><i class="fas fa-cash-register"></i> Kedai Kopi</h4>
+                    <h4 class="text-white"> Kasir kedai Kopi</h4>
                     <p class="text-white-50 small mt-2" id="loggedInUser">Belum Login</p>
-                    <p class="text-white-50 small" id="loggedInRole"></p> <!-- Tempat role -->
+                    <p class="text-white-50 small" id="loggedInRole"></p>
+                    <hr class="text-white-50">
                 </div>
                 <nav class="nav flex-column">
                     <a class="nav-link active" href="#" data-section-id="pos-section">
@@ -210,7 +210,6 @@
 
             <!-- Main Content Area -->
             <div class="col-md-10 p-4">
-                <!-- POS Section -->
                 <div id="pos-section" class="content-section">
                     <h2>Kasir</h2>
                     <div class="row mt-4">
@@ -233,9 +232,7 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <div class="row" id="products-grid">
-                                        <!-- Products will be loaded here by JavaScript -->
-                                    </div>
+                                    <div class="row" id="products-grid"></div>
                                 </div>
                             </div>
                         </div>
@@ -288,10 +285,11 @@
                                     <thead>
                                         <tr>
                                             <th>ID</th>
-                                            <th>Gambar & Nama</th> <th>Kategori</th>
+                                            <th>Barang</th>
+                                            <th>Kategori</th>
                                             <th>Harga</th>
                                             <th>Stok</th>
-                                            <th>Aksi</th>
+                                            <th>Opsi</th>
                                         </tr>
                                     </thead>
                                     <tbody id="products-table">
@@ -934,7 +932,7 @@
             filteredProducts.forEach(product => {
                 // Tentukan sumber gambar, jika ada, gunakan placeholder jika tidak
                 // Pastikan path `uploads/` sesuai dengan $uploadDir di api.php
-                const imageUrl = product.image_url ? `uploads/${product.image_url}` : `https://via.placeholder.com/100x80?text=No+Image`;
+                const imageUrl = product.image_url ? `uploads/${product.image_url}` : `uploads/no_image.svg`;
 
                 const productCard = `
                     <div class="col-md-4 mb-3">
@@ -969,7 +967,7 @@
             productsCache.forEach(product => {
                 const stockBadgeClass = product.stock > 10 ? 'bg-success' : product.stock > 0 ? 'bg-warning' : 'bg-danger';
                 // Pastikan path `uploads/` sesuai dengan $uploadDir di api.php
-                const imageUrl = product.image_url ? `uploads/${product.image_url}` : `https://via.placeholder.com/50x50?text=No+Image`;
+                const imageUrl = product.image_url ? `uploads/${product.image_url}` : `uploads/no_image.svg`;
 
                 const row = `
                     <tr>
@@ -1026,6 +1024,7 @@
                     Swal.fire('Berhasil!', 'Produk berhasil disimpan.', 'success');
                     bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
                     loadProducts(); // Muat ulang semua produk dan perbarui tampilan POS/tabel
+                    loadProductsTable(); // Memuat tabel manajemen produk
                 } else {
                     Swal.fire('Error!', 'Gagal menyimpan produk: ' + (data.error || 'Unknown error'), 'error');
                 }
@@ -1099,6 +1098,7 @@
                     Swal.fire('Berhasil!', 'Produk berhasil diperbarui!', 'success');
                     bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
                     loadProducts(); // Muat ulang semua produk dan perbarui tampilan POS/tabel
+                    loadProductsTable(); // Memuat ulang tabel manajemen produk
                 } else {
                     Swal.fire('Error!', 'Gagal memperbarui produk: ' + (data.error || 'Unknown error'), 'error');
                 }
@@ -1131,6 +1131,7 @@
                         if (data.success) {
                             Swal.fire('Dihapus!', 'Produk berhasil dihapus.', 'success');
                             loadProducts(); // Muat ulang semua produk dan perbarui tampilan POS/tabel
+                            loadProductsTable(); // Memuat tabel manajemen produk
                         } else {
                             // Tampilkan pesan error dari server jika ada
                             Swal.fire('Error!', 'Gagal menghapus produk: ' + (data.error || 'Tidak diketahui'), 'error');
