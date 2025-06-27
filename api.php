@@ -161,35 +161,60 @@ switch ($action) {
             exit;
         }
 
-        // 1. Ambil image_url dari produk yang akan dihapus
-        $stmt_get_image = $conn->prepare("SELECT image_url FROM products WHERE id = ?");
-        $stmt_get_image->bind_param("i", $id);
-        $stmt_get_image->execute();
-        $result_image = $stmt_get_image->get_result();
-        $product_to_delete = $result_image->fetch_assoc();
-        $stmt_get_image->close();
+        // 1. Ambil seluruh data produk yang akan dihapus
+        $stmt_get_product = $conn->prepare("SELECT * FROM products WHERE id = ?");
+        $stmt_get_product->bind_param("i", $id);
+        $stmt_get_product->execute();
+        $result_product = $stmt_get_product->get_result();
+        $product_data = $result_product->fetch_assoc();
+        $stmt_get_product->close();
 
-        // 2. Hapus file gambar dari server jika ada
-        if ($product_to_delete && !empty($product_to_delete['image_url'])) {
-            $imagePath = $uploadDir . $product_to_delete['image_url'];
-            if (file_exists($imagePath)) {
-                unlink($imagePath); // Hapus file gambar
-            }
+        if (!$product_data) {
+            echo json_encode(['success' => false, 'error' => 'Produk tidak ditemukan.']);
+            exit;
         }
 
-        // 3. Hapus entri produk dari database
-        $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
-        $stmt->bind_param("i", $id);
-        if ($stmt->execute()) {
-            if ($stmt->affected_rows > 0) {
-                echo json_encode(['success' => true, 'message' => 'Produk berhasil dihapus.']);
-            } else {
-                echo json_encode(['success' => false, 'error' => 'Produk tidak ditemukan.']);
+        // Gunakan transaksi agar insert dan delete berjalan atomik
+        $conn->begin_transaction();
+        try {
+            // 2. Simpan data produk ke tabel deleted_products
+            $stmt_insert_deleted = $conn->prepare("INSERT INTO deleted_products (original_product_id, name, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt_insert_deleted->bind_param(
+                "issdis",
+                $product_data['id'],
+                $product_data['name'],
+                $product_data['category'],
+                $product_data['price'],
+                $product_data['stock'],
+                $product_data['image_url']
+            );
+            if (!$stmt_insert_deleted->execute()) {
+                throw new Exception('Gagal memindahkan ke tempat sampah: ' . $stmt_insert_deleted->error);
             }
-        } else {
-            echo json_encode(['success' => false, 'error' => $stmt->error]);
+            $stmt_insert_deleted->close();
+
+            // 3. Hapus semua transaction_details terkait produk ini
+            $stmt_del_details = $conn->prepare("DELETE FROM transaction_details WHERE product_id = ?");
+            $stmt_del_details->bind_param("i", $id);
+            if (!$stmt_del_details->execute()) {
+                throw new Exception('Gagal menghapus detail transaksi terkait produk: ' . $stmt_del_details->error);
+            }
+            $stmt_del_details->close();
+
+            // 4. Hapus entri produk dari database
+            $stmt = $conn->prepare("DELETE FROM products WHERE id = ?");
+            $stmt->bind_param("i", $id);
+            if (!$stmt->execute() || $stmt->affected_rows < 1) {
+                throw new Exception('Gagal menghapus produk dari daftar utama.');
+            }
+            $stmt->close();
+
+            $conn->commit();
+            echo json_encode(['success' => true, 'message' => 'Produk berhasil dipindahkan ke tempat sampah. Semua histori transaksi produk ini juga dihapus.']);
+        } catch (Exception $e) {
+            $conn->rollback();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
         }
-        $stmt->close();
         break;
 
     // Memproses transaksi pembayaran
@@ -339,6 +364,116 @@ switch ($action) {
         $reports['total_stock_products'] = $result->fetch_assoc()['total_stock'] ?? 0;
 
         echo json_encode($reports);
+        break;
+
+    // Mengambil produk yang ada di tempat sampah
+    case 'get_deleted_products':
+        $sql = "SELECT * FROM deleted_products ORDER BY deleted_at DESC";
+        $result = $conn->query($sql);
+        $deleted_products = [];
+        if ($result && $result->num_rows > 0) {
+            while($row = $result->fetch_assoc()) {
+                $deleted_products[] = $row;
+            }
+        }
+        echo json_encode($deleted_products);
+        break;
+
+    // Memulihkan produk dari tempat sampah
+    case 'restore_product':
+        $id = $_POST['id'] ?? null; // id pada tabel deleted_products
+        if (empty($id)) {
+            echo json_encode(['success' => false, 'error' => 'ID produk di tempat sampah wajib diisi.']);
+            exit;
+        }
+        // Ambil data dari deleted_products
+        $stmt = $conn->prepare("SELECT * FROM deleted_products WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $deleted_product = $result->fetch_assoc();
+        $stmt->close();
+        if (!$deleted_product) {
+            echo json_encode(['success' => false, 'error' => 'Produk di tempat sampah tidak ditemukan.']);
+            exit;
+        }
+        // Cek apakah original_product_id sudah ada di products (jika iya, tidak boleh restore)
+        $stmt_check = $conn->prepare("SELECT id FROM products WHERE id = ?");
+        $stmt_check->bind_param("i", $deleted_product['original_product_id']);
+        $stmt_check->execute();
+        $stmt_check->store_result();
+        if ($stmt_check->num_rows > 0) {
+            $stmt_check->close();
+            echo json_encode(['success' => false, 'error' => 'Produk dengan ID asli sudah ada di daftar produk.']);
+            exit;
+        }
+        $stmt_check->close();
+        // Insert kembali ke products
+        $stmt_restore = $conn->prepare("INSERT INTO products (id, name, category, price, stock, image_url) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt_restore->bind_param(
+            "issdis",
+            $deleted_product['original_product_id'],
+            $deleted_product['name'],
+            $deleted_product['category'],
+            $deleted_product['price'],
+            $deleted_product['stock'],
+            $deleted_product['image_url']
+        );
+        if ($stmt_restore->execute()) {
+            // Hapus dari deleted_products
+            $stmt_del = $conn->prepare("DELETE FROM deleted_products WHERE id = ?");
+            $stmt_del->bind_param("i", $id);
+            $stmt_del->execute();
+            $stmt_del->close();
+            echo json_encode(['success' => true, 'message' => 'Produk berhasil dipulihkan.']);
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt_restore->error]);
+        }
+        $stmt_restore->close();
+        break;
+
+    // Hapus permanen produk dari tempat sampah beserta histori transaksinya
+    case 'permanent_delete_product':
+        $id = $_POST['id'] ?? null; // id pada tabel deleted_products
+        if (empty($id)) {
+            echo json_encode(['success' => false, 'error' => 'ID produk di tempat sampah wajib diisi.']);
+            exit;
+        }
+        // Ambil data dari deleted_products
+        $stmt = $conn->prepare("SELECT * FROM deleted_products WHERE id = ?");
+        $stmt->bind_param("i", $id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $deleted_product = $result->fetch_assoc();
+        $stmt->close();
+        if (!$deleted_product) {
+            echo json_encode(['success' => false, 'error' => 'Produk di tempat sampah tidak ditemukan.']);
+            exit;
+        }
+        $product_id = $deleted_product['original_product_id'];
+        // Hapus histori transaksi (transaction_details) untuk produk ini
+        $stmt_del_details = $conn->prepare("DELETE FROM transaction_details WHERE product_id = ?");
+        $stmt_del_details->bind_param("i", $product_id);
+        $stmt_del_details->execute();
+        $stmt_del_details->close();
+        // (Opsional) Hapus transaksi di tabel transactions yang tidak punya detail lagi
+        $conn->query("DELETE t FROM transactions t LEFT JOIN transaction_details td ON t.id = td.transaction_id WHERE td.id IS NULL");
+        // Hapus file gambar jika ada
+        if (!empty($deleted_product['image_url'])) {
+            $imagePath = $uploadDir . $deleted_product['image_url'];
+            if (file_exists($imagePath)) {
+                unlink($imagePath);
+            }
+        }
+        // Hapus dari deleted_products
+        $stmt_del = $conn->prepare("DELETE FROM deleted_products WHERE id = ?");
+        $stmt_del->bind_param("i", $id);
+        if ($stmt_del->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Produk dan seluruh histori transaksinya berhasil dihapus permanen.']);
+        } else {
+            echo json_encode(['success' => false, 'error' => $stmt_del->error]);
+        }
+        $stmt_del->close();
         break;
 
     // Aksi default jika tidak ada yang cocok

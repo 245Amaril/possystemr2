@@ -257,6 +257,9 @@
                     <a class="nav-link admin-only-menu d-none" href="#" data-section-id="reports-section">
                         <i class="fas fa-chart-bar me-2"></i> Laporan
                     </a>
+                    <a class="nav-link admin-only-menu d-none" href="#" id="recycleBinMenu" data-section-id="recycle-bin-section">
+                        <i class="fas fa-trash-restore"></i> Tempat Sampah
+                    </a>
                     <hr class="text-white-50">
                     <a class="nav-link" href="#" id="logoutButton">
                         <i class="fas fa-sign-out-alt me-2"></i> Logout
@@ -420,6 +423,37 @@
                                     <h5>Rata-rata per Transaksi</h5>
                                     <h3 class="text-info" id="avg-transaction">Rp 0</h3>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recycle Bin Section -->
+                <div id="recycle-bin-section" class="content-section" style="display: none;">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-danger text-white d-flex align-items-center">
+                            <i class="fas fa-trash-restore me-2"></i>
+                            <h4 class="mb-0">Tempat Sampah Produk</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Asli</th>
+                                            <th>Nama</th>
+                                            <th>Kategori</th>
+                                            <th>Harga</th>
+                                            <th>Stok</th>
+                                            <th>Gambar</th>
+                                            <th>Dihapus Pada</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recycle-bin-table">
+                                        <!-- Recycle bin items will be populated here by JavaScript -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -824,6 +858,57 @@
                     Swal.fire('Error!', 'Tidak ada transaksi yang bisa dicetak.', 'error');
                 }
             });
+
+            // Tambah menu sidebar dan section Tempat Sampah (admin only) dalam satu event DOMContentLoaded
+            document.addEventListener('DOMContentLoaded', function() {
+                // Tambahkan menu Tempat Sampah ke sidebar jika belum ada
+                const sidebar = document.querySelector('.sidebar');
+                if (sidebar && !document.getElementById('recycleBinMenu')) {
+                    const recycleBinMenu = document.createElement('a');
+                    recycleBinMenu.href = '#';
+                    recycleBinMenu.className = 'nav-link admin-only-menu d-none';
+                    recycleBinMenu.id = 'recycleBinMenu';
+                    recycleBinMenu.dataset.sectionId = 'recycle-bin-section';
+                    recycleBinMenu.innerHTML = '<i class="fas fa-trash-restore"></i> Tempat Sampah';
+                    sidebar.appendChild(recycleBinMenu);
+                }
+                // Tambah section untuk Tempat Sampah di main content jika belum ada
+                const mainContent = document.querySelector('.col-md-10.p-4');
+                if (mainContent && !document.getElementById('recycle-bin-section')) {
+                    const recycleBinSection = document.createElement('div');
+                    recycleBinSection.id = 'recycle-bin-section';
+                    recycleBinSection.className = 'content-section';
+                    recycleBinSection.style.display = 'none';
+                    recycleBinSection.innerHTML = `
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-danger text-white d-flex align-items-center">
+                                <i class="fas fa-trash-restore me-2"></i>
+                                <h4 class="mb-0">Tempat Sampah Produk</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>ID Asli</th>
+                                                <th>Nama</th>
+                                                <th>Kategori</th>
+                                                <th>Harga</th>
+                                                <th>Stok</th>
+                                                <th>Gambar</th>
+                                                <th>Dihapus Pada</th>
+                                                <th>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="recycle-bin-table"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    mainContent.appendChild(recycleBinSection);
+                }
+            });
         });
 
         // --- Fungsi Manajemen Autentikasi dan UI ---
@@ -947,6 +1032,9 @@
                         Swal.fire('Akses Ditolak!', 'Anda tidak memiliki hak akses untuk halaman ini.', 'error');
                         showSection('pos-section'); // Kembali ke POS jika tidak punya akses
                     }
+                    break;
+                case 'recycle-bin-section':
+                    loadRecycleBin();
                     break;
             }
         }
@@ -1176,7 +1264,7 @@
         async function deleteProduct(productId) {
             Swal.fire({
                 title: 'Anda yakin?',
-                text: "Produk ini akan dihapus permanen!",
+                text: "Produk ini akan dihapus ke tempat sampah!",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#d33',
@@ -1187,25 +1275,117 @@
                 if (result.isConfirmed) {
                     const formData = new FormData();
                     formData.append('id', productId);
-                    
                     try {
-                        // Memanggil fungsi apiFetch untuk mengirim permintaan DELETE
-                        // apiFetch diharapkan mengembalikan respons JSON
                         const data = await apiFetch('delete_product', 'POST', formData);
-                        
                         if (data.success) {
-                            Swal.fire('Dihapus!', 'Produk berhasil dihapus.', 'success');
-                            loadProducts(); // Muat ulang semua produk dan perbarui tampilan POS/tabel
-                            loadProductsTable(); // Memuat tabel manajemen produk
+                            loadProducts();
+                            loadProductsTable();
+                            Swal.fire('Dihapus!', 'Produk berhasil dipindahkan ke tempat sampah.', 'success').then(() => {
+                                showSection('products-section');
+                            });
+                            showSection('products-section');
                         } else {
-                            // Tampilkan pesan error dari server jika ada
-                            Swal.fire('Error!', 'Gagal menghapus produk: ' + (data.error || 'Tidak diketahui'), 'error');
+                            Swal.fire('Error!', data.error || 'Gagal menghapus produk.', 'error');
                         }
                     } catch (error) {
-                        // Tangani error yang terjadi selama fetch atau parsing JSON
-                        // Error "SyntaxError: JSON.parse: unexpected character" akan tertangkap di sini
-                        console.error("Error fetching delete_product:", error); // Tampilkan error di konsol untuk debugging
-                        Swal.fire('Error Koneksi!', 'Terjadi masalah saat berkomunikasi dengan server. Mohon coba lagi. Detail: ' + error.message, 'error');
+                        // Error sudah ditangani oleh apiFetch
+                    }
+                }
+            });
+        }
+
+        // Fungsi untuk memuat produk di tempat sampah
+        async function loadRecycleBin() {
+            try {
+                const data = await apiFetch('get_deleted_products');
+                const tbody = document.getElementById('recycle-bin-table');
+                tbody.innerHTML = '';
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Tempat sampah kosong.</td></tr>';
+                    return;
+                }
+                data.forEach(product => {
+                    const imageUrl = product.image_url ? `uploads/${product.image_url}` : `uploads/no_image.svg`;
+                    const row = `
+                        <tr>
+                            <td>${product.original_product_id}</td>
+                            <td>${product.name}</td>
+                            <td>${product.category || '-'}</td>
+                            <td>${formatRupiah(product.price)}</td>
+                            <td>${product.stock}</td>
+                            <td><img src="${imageUrl}" alt="${product.name}" style="width:40px;height:40px;object-fit:cover;border-radius:5px;"></td>
+                            <td>${new Date(product.deleted_at).toLocaleString('id-ID')}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm me-1" onclick="restoreProduct(${product.id})"><i class="fas fa-undo"></i> Pulihkan</button>
+                                <button class="btn btn-danger btn-sm" onclick="permanentDeleteProduct(${product.id})"><i class="fas fa-trash"></i> Hapus Permanen</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                // Error sudah ditangani oleh apiFetch
+            }
+        }
+
+        // Fungsi untuk menghapus permanen produk dari tempat sampah beserta histori transaksi
+        async function permanentDeleteProduct(deletedId) {
+            Swal.fire({
+                title: 'Hapus Permanen?',
+                text: 'Produk dan seluruh histori transaksinya akan dihapus secara permanen dan tidak dapat dikembalikan! Lanjutkan?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Hapus Permanen',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#d33'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('id', deletedId);
+                    try {
+                        const data = await apiFetch('permanent_delete_product', 'POST', formData);
+                        if (data.success) {
+                            Swal.fire('Berhasil!', 'Produk dan histori transaksinya dihapus permanen.', 'success');
+                            loadRecycleBin();
+                        } else {
+                            Swal.fire('Error!', data.error || 'Gagal menghapus permanen.', 'error');
+                        }
+                    } catch (error) {
+                        // Error sudah ditangani oleh apiFetch
+                    }
+                }
+            });
+        }
+
+        // Perbaiki deleteProduct agar error dari backend tampil jelas
+        async function deleteProduct(productId) {
+            Swal.fire({
+                title: 'Anda yakin?',
+                text: "Produk ini akan dihapus ke tempat sampah!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Ya, hapus!',
+                cancelButtonText: 'Batal'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('id', productId);
+                    try {
+                        const data = await apiFetch('delete_product', 'POST', formData);
+                        if (data.success) {
+                            loadProducts();
+                            loadProductsTable();
+                            Swal.fire('Dihapus!', 'Produk berhasil dipindahkan ke tempat sampah.', 'success').then(() => {
+                                showSection('products-section');
+                            });
+                            showSection('products-section');
+                        } else {
+                            Swal.fire('Error!', data.error || 'Gagal menghapus produk.', 'error');
+                        }
+                    } catch (error) {
+                        // Error sudah ditangani oleh apiFetch
                     }
                 }
             });
@@ -1530,7 +1710,7 @@
                     padding: 2px 0;
                     vertical-align: top;
                     border-bottom: none; /* Hilangkan garis bawah tabel Bootstrap */
-                }
+                               }
                 .text-center { text-align: center; }
                 .text-end { text-align: right; }
                 .d-flex { display: flex; }
@@ -1573,6 +1753,131 @@
                 // Error sudah ditangani oleh apiFetch
             }
         }
+
+        // Tambah menu sidebar untuk Tempat Sampah (admin only)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Tambahkan menu Tempat Sampah ke sidebar jika belum ada
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar && !document.getElementById('recycleBinMenu')) {
+                const recycleBinMenu = document.createElement('a');
+                recycleBinMenu.href = '#';
+                recycleBinMenu.className = 'nav-link admin-only-menu d-none';
+                recycleBinMenu.id = 'recycleBinMenu';
+                recycleBinMenu.dataset.sectionId = 'recycle-bin-section';
+                recycleBinMenu.innerHTML = '<i class="fas fa-trash-restore"></i> Tempat Sampah';
+                sidebar.appendChild(recycleBinMenu);
+            }
+            // Tambah section untuk Tempat Sampah di main content jika belum ada
+            const mainContent = document.querySelector('.col-md-10.p-4');
+            if (mainContent && !document.getElementById('recycle-bin-section')) {
+                const recycleBinSection = document.createElement('div');
+                recycleBinSection.id = 'recycle-bin-section';
+                recycleBinSection.className = 'content-section';
+                recycleBinSection.style.display = 'none';
+                recycleBinSection.innerHTML = `
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-danger text-white d-flex align-items-center">
+                            <i class="fas fa-trash-restore me-2"></i>
+                            <h4 class="mb-0">Tempat Sampah Produk</h4>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>ID Asli</th>
+                                            <th>Nama</th>
+                                            <th>Kategori</th>
+                                            <th>Harga</th>
+                                            <th>Stok</th>
+                                            <th>Gambar</th>
+                                            <th>Dihapus Pada</th>
+                                            <th>Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recycle-bin-table"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                mainContent.appendChild(recycleBinSection);
+            }
+        });
+
+        // Fungsi untuk memuat produk di tempat sampah
+        async function loadRecycleBin() {
+            try {
+                const data = await apiFetch('get_deleted_products');
+                const tbody = document.getElementById('recycle-bin-table');
+                tbody.innerHTML = '';
+                if (!data || data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Tempat sampah kosong.</td></tr>';
+                    return;
+                }
+                data.forEach(product => {
+                    const imageUrl = product.image_url ? `uploads/${product.image_url}` : `uploads/no_image.svg`;
+                    const row = `
+                        <tr>
+                            <td>${product.original_product_id}</td>
+                            <td>${product.name}</td>
+                            <td>${product.category || '-'}</td>
+                            <td>${formatRupiah(product.price)}</td>
+                            <td>${product.stock}</td>
+                            <td><img src="${imageUrl}" alt="${product.name}" style="width:40px;height:40px;object-fit:cover;border-radius:5px;"></td>
+                            <td>${new Date(product.deleted_at).toLocaleString('id-ID')}</td>
+                            <td>
+                                <button class="btn btn-success btn-sm me-1" onclick="restoreProduct(${product.id})"><i class="fas fa-undo"></i> Pulihkan</button>
+                                <button class="btn btn-danger btn-sm" onclick="permanentDeleteProduct(${product.id})"><i class="fas fa-trash"></i> Hapus Permanen</button>
+                            </td>
+                        </tr>
+                    `;
+                    tbody.innerHTML += row;
+                });
+            } catch (error) {
+                // Error sudah ditangani oleh apiFetch
+            }
+        }
+
+        // Fungsi untuk memulihkan produk dari tempat sampah
+        async function restoreProduct(deletedId) {
+            Swal.fire({
+                title: 'Pulihkan Produk?',
+                text: 'Produk akan dikembalikan ke daftar produk utama.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Pulihkan',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#28a745'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const formData = new FormData();
+                    formData.append('id', deletedId);
+                    try {
+                        const data = await apiFetch('restore_product', 'POST', formData);
+                        if (data.success) {
+                            Swal.fire('Berhasil!', 'Produk berhasil dipulihkan.', 'success');
+                            loadRecycleBin();
+                            loadProducts();
+                            loadProductsTable();
+                        } else {
+                            Swal.fire('Error!', data.error || 'Gagal memulihkan produk.', 'error');
+                        }
+                    } catch (error) {
+                        // Error sudah ditangani oleh apiFetch
+                    }
+                }
+            });
+        }
+
+        // Tambahkan pemanggilan loadRecycleBin pada showSection
+        const oldShowSection = showSection;
+        showSection = function(sectionId) {
+            oldShowSection(sectionId);
+            if (sectionId === 'recycle-bin-section') {
+                loadRecycleBin();
+            }
+        };
     </script>
 </body>
 </html>

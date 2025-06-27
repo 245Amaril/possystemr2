@@ -55,3 +55,17 @@ CREATE TABLE IF NOT EXISTS `users` (
 -- Dumping data for table kasir.users: ~1 rows (approximately)
 INSERT INTO `users` (`id`, `username`, `password`, `role`, `created_at`) VALUES
 	(2, 'admin', '$2y$10$qa91c4FzFNWHznZ8glzNluXQGDe11eROM1bph8fNJDhFEbVXooEI2', 'admin', '2025-06-24 16:26:03');
+
+-- Tabel untuk menyimpan produk yang dihapus (tempat sampah)
+CREATE TABLE IF NOT EXISTS `deleted_products` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `original_product_id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `category` varchar(100) DEFAULT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `stock` int(11) NOT NULL,
+  `image_url` varchar(255) DEFAULT NULL,
+  `deleted_at` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `original_product_id` (`original_product_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
