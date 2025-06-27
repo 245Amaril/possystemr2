@@ -126,11 +126,68 @@
         .main-content-wrapper {
             display: none; /* Sembunyikan secara default, akan ditampilkan setelah login */
         }
+        /* Hapus padding default card-body untuk tampilan full-width */
+        .product-card .card-body {
+            padding: 0;
+        }
+
+        /* Container responsif untuk gambar dengan rasio 1:1 */
+        .image-text-overlay {
+            position: relative;
+            width: 100%; /* Lebar responsif, mengikuti kolom */
+            aspect-ratio: 1 / 1; /* Menjaga rasio 1:1 */
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 15px; /* Atur border-radius di sini */
+        }
+
+        /* Pastikan gambar mengisi container */
+        .image-text-overlay .product-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Overlay teks di atas gambar */
+        .image-text-overlay .text-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            text-align: center; /* <<<--- PERUBAHAN: Teks di tengah */
+            transition: background-color 0.3s;
+        }
+
+        /* Efek hover */
+        .image-text-overlay:hover .text-overlay {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        /* --- Tampilan Stok di Kanan Bawah --- */
+        .stock-badge-overlay {
+            position: absolute; /* Posisikan secara absolut */
+            bottom: 8px; /* Jarak dari bawah */
+            right: 8px; /* Jarak dari kanan */
+            z-index: 10; /* Pastikan di atas elemen lain */
+            background-color:rgb(234, 177, 102); /* Ganti warna sesuai keinginan */
+            color: white;
+            font-weight: bold;
+            font-size: 0.85em;
+            width: 35px; /* Lebar dan tinggi untuk membuat bulat */
+            height: 35px;
+            display: flex; /* Gunakan flexbox untuk menengahkan teks */
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px; /* <<<--- PERUBAHAN: Bentuk bulat */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
     </style>
 </head>
 <body>
-    <!-- Authentication Container (Login/Register) -->
-    <!-- Authentication Container (Login/Register) -->
     <!-- Authentication Container (Login/Register) -->
     <div id="authContainer" class="auth-container">
         <div class="auth-card text-center">
@@ -161,8 +218,6 @@
                     <label for="registerPassword" class="form-label">Password</label>
                     <input type="password" class="form-control" id="registerPassword" required>
                 </div>
-                <!-- Pilihan role untuk pendaftaran. HATI-HATI: Dalam aplikasi nyata, pendaftaran umum biasanya hanya untuk 'cashier' -->
-                <!-- Jika ini hanya untuk demo, Anda bisa sertakan. Untuk produksi, admin harus mendaftarkan user lain. -->
                 <div class="mb-3 text-start">
                     <label for="registerRole" class="form-label">Daftar Sebagai</label>
                     <select class="form-select" id="registerRole">
@@ -182,8 +237,9 @@
             <!-- Sidebar -->
             <div class="col-md-2 sidebar p-3">
                 <div class="text-center mb-4">
-                    <h4 class="text-white"> Kasir kedai Kopi</h4>
-                    <p class="text-white-50 small mt-2" id="loggedInUser">Belum Login</p>
+                    <h4 class="text-white">KEDAI BIASANE</h4>
+                    <hr class="text-white-50">
+                    <p class="text-white-50 small mt-2" id="loggedInUser"></p>
                     <p class="text-white-50 small" id="loggedInRole"></p>
                     <hr class="text-white-50">
                 </div>
@@ -211,7 +267,6 @@
             <!-- Main Content Area -->
             <div class="col-md-10 p-4">
                 <div id="pos-section" class="content-section">
-                    <h2>Kasir</h2>
                     <div class="row mt-4">
                         <div class="col-md-8">
                             <div class="card">
@@ -481,6 +536,7 @@
                     <p>Transaksi telah selesai.</p>
                     <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
                         <button type="button" class="btn btn-outline-secondary btn-lg px-4" data-bs-dismiss="modal">Tutup</button>
+                        <button type="button" class="btn btn-primary btn-lg px-4" id="printReceiptFromSuccessButton"><i class="fas fa-print me-2"></i>Cetak Struk</button>
                     </div>
                 </div>
             </div>
@@ -628,7 +684,7 @@
                         document.getElementById('authContainer').style.display = 'none';
                         document.getElementById('mainContentWrapper').style.display = 'block';
                         document.getElementById('loggedInUser').innerText = data.username;
-                        document.getElementById('loggedInRole').innerText = `(${data.role.toUpperCase()})`;
+                        document.getElementById('loggedInRole').innerText = `[${data.role}]`;
                         updateSidebarMenu();
                         showSection('pos-section'); // Default ke section POS setelah login
                     } else {
@@ -752,38 +808,39 @@
 
             // Tombol Cetak Struk dari detail transaksi
             document.getElementById('printReceiptFromDetailButton').addEventListener('click', printReceipt);
+
+            // Tombol Cetak Struk dari modal pembayaran sukses
+            document.getElementById('printReceiptFromSuccessButton').addEventListener('click', function() {
+                // Tutup modal pembayaran sukses sebelum cetak
+                const paymentSuccessModal = bootstrap.Modal.getInstance(document.getElementById('paymentSuccessModal'));
+                if (paymentSuccessModal) {
+                    paymentSuccessModal.hide();
+                }
+                if (currentTransactionId) {
+                    setTimeout(function() {
+                        viewTransactionDetails(currentTransactionId, true); // true = auto print
+                    }, 400); // beri jeda agar modal benar-benar tertutup
+                } else {
+                    Swal.fire('Error!', 'Tidak ada transaksi yang bisa dicetak.', 'error');
+                }
+            });
         });
 
         // --- Fungsi Manajemen Autentikasi dan UI ---
 
         // Memeriksa status login pengguna saat ini
         async function checkLoginStatus() {
-            // Sembunyikan kontainer autentikasi segera untuk mencegah flickering
             document.getElementById('authContainer').style.display = 'none';
-
-            // Tampilkan SweetAlert2 loading spinner saat memulai pengecekan status login
-            Swal.fire({
-                title: 'Memuat...',
-                text: 'Memeriksa sesi Anda.',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
             try {
                 const data = await authFetch('get_user_info');
                 if (data.success && data.username) {
                     currentUserRole = data.role;
+                    document.getElementById('authContainer').style.display = 'none';
                     document.getElementById('mainContentWrapper').style.display = 'block';
                     document.getElementById('loggedInUser').innerText = data.username;
-                    document.getElementById('loggedInRole').innerText = `(${data.role.toUpperCase()})`;
+                    document.getElementById('loggedInRole').innerText = `[${data.role}]`;
                     updateSidebarMenu();
                     showSection('pos-section'); // Default ke section POS setelah login
-                    // Tutup loading setelah penundaan singkat untuk efek yang lebih halus
-                    setTimeout(() => {
-                        Swal.close();
-                    }, 800); // Durasi loading 800ms
                 } else {
                     // Jika tidak berhasil login, panggil resetAuthState
                     // resetAuthState akan menangani loading dan penutupan Swal.fire sendiri
@@ -819,7 +876,7 @@
             document.getElementById('authTitle').innerText = 'Login';
             document.getElementById('loginUsername').value = '';
             document.getElementById('loginPassword').value = '';
-            document.getElementById('loggedInUser').innerText = 'Belum Login';
+            document.getElementById('loggedInUser').innerText = '';
             document.getElementById('loggedInRole').innerText = '';
             currentUserRole = ''; // Hapus peran pengguna
             updateSidebarMenu(); // Reset visibilitas menu sidebar
@@ -935,19 +992,24 @@
                 const imageUrl = product.image_url ? `uploads/${product.image_url}` : `uploads/no_image.svg`;
 
                 const productCard = `
-                    <div class="col-md-4 mb-3">
-                        <div class="card product-card h-100" onclick="addToCart(${product.id})">
-                            <div class="card-body text-center">
-                                <img src="${imageUrl}" class="img-fluid rounded mb-2" alt="${product.name}" style="max-height: 80px; object-fit: cover;">
-                                <h6 class="card-title">${product.name}</h6>
-                                <p class="card-text">
-                                    <small class="text-muted">${product.category}</small><br>
-                                    <strong class="text-success">${formatRupiah(product.price)}</strong><br>
-                                    <small>Stok: <span class="badge bg-secondary">${product.stock}</span></small>
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+<div class="col-md-4 mb-3">
+    <div class="card product-card h-100" onclick="addToCart(${product.id})">
+        <div class="card-body text-center">
+            <div class="image-text-overlay">
+                <img src="${imageUrl}" class="product-image" alt="${product.name}">
+                
+                <div class="stock-badge-overlay">
+                    ${product.stock}
+                </div>
+
+                <div class="text-overlay">
+                    <h6 class="card-title mb-1" style="color: white; font-weight: bold;">${product.name}</h6>
+                    <strong style="color: #66ff99; font-size: 1.1em;">${formatRupiah(product.price)}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                 `;
                 grid.innerHTML += productCard;
             });
@@ -1095,10 +1157,14 @@
             try {
                 const data = await apiFetch('update_product', 'POST', formData);
                 if (data.success) {
-                    Swal.fire('Berhasil!', 'Produk berhasil diperbarui!', 'success');
                     bootstrap.Modal.getInstance(document.getElementById('productModal')).hide();
                     loadProducts(); // Muat ulang semua produk dan perbarui tampilan POS/tabel
                     loadProductsTable(); // Memuat ulang tabel manajemen produk
+                    // Tampilkan notifikasi sukses menggunakan SweetAlert2
+                    Swal.fire('Berhasil!', 'Produk berhasil diperbarui!', 'success').then(() => {
+                        // Refresh halaman tanpa reload penuh, hanya reload section produk
+                        showSection('products-section');
+                    });
                 } else {
                     Swal.fire('Error!', 'Gagal memperbarui produk: ' + (data.error || 'Unknown error'), 'error');
                 }
