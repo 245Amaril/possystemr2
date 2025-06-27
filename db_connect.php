@@ -1,20 +1,21 @@
 <?php
 // File: db_connect.php
-$servername = "localhost"; // Ganti jika perlu (misal: nama host dari provider hosting)
-$username = "root";        // Ganti dengan username database Anda
-$password = "";            // Ganti dengan password database Anda
-$dbname = "kasir";         // Ganti dengan nama database Anda
+// Konfigurasi koneksi database
+$servername = "localhost"; // Nama host database (biasanya 'localhost')
+$username = "root";        // Username database
+$password = "";            // Password database
+$dbname = "kasir";         // Nama database
 
-// Membuat koneksi
+// Membuat koneksi ke database menggunakan MySQLi
 $conn = new mysqli($servername, $username, $password, $dbname);
 
-// Cek koneksi
+// Cek koneksi dan tampilkan pesan error yang mudah dipahami di konsol browser
 if ($conn->connect_error) {
-    // In development, you can use die() for immediate feedback.
-    // In production, you'd log this error and show a generic message.
-    die("Koneksi gagal: " . $conn->connect_error);
+    // Kirim error ke konsol browser menggunakan JavaScript
+    echo "<script>console.error('Koneksi ke database gagal: ".addslashes($conn->connect_error)."');</script>";
+    // Hentikan eksekusi PHP dan tampilkan pesan error di halaman (hanya untuk development)
+    die("Koneksi ke database gagal. Silakan cek konfigurasi koneksi pada file db_connect.php");
 }
 
-// **HAPUS BARIS INI DARI SINI**
-// header('Content-Type: application/json');
+// Koneksi berhasil, variabel $conn siap digunakan untuk query
 ?>
