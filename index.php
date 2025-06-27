@@ -221,7 +221,7 @@
                 <div class="mb-3 text-start">
                     <label for="registerRole" class="form-label">Daftar Sebagai</label>
                     <select class="form-select" id="registerRole">
-                        <option value="cashier">Kasir</option>
+                        <option value="kasir">Kasir</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
