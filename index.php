@@ -188,7 +188,7 @@
     </style>
 </head>
 <body>
-    <!-- Authentication Container (Login/Register) -->
+    <!-- Authentication Container -->
     <div id="authContainer" class="auth-container">
         <div class="auth-card text-center">
             <h2 class="mb-4" id="authTitle">Login</h2>
@@ -205,12 +205,8 @@
                     <input type="password" class="form-control" id="loginPassword" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
-                <div class="d-flex justify-content-between">
-                    <p class="mb-0">Belum punya akun? <a href="#" id="showRegister">Daftar sekarang</a></p>
-                </div>
-                <div class="d-flex justify-content-between">
-                    <p class="mb-0">Lupa password? <a href="#" id="showResetPassword">Reset Password</a></p>
-                </div>
+                <p class="mb-0">Belum punya akun? <a href="#" id="showRegister">Daftar sekarang</a></p>
+                <p>Lupa password? <a href="#" id="showResetPassword">Reset Password</a></p>
             </form>
 
             <!-- Reset Password Form -->
@@ -250,7 +246,7 @@
         </div>
     </div>
 
-    <!-- Main Content Wrapper (Hidden until login) -->
+    <!-- Main Content Wrapper -->
     <div id="mainContentWrapper" class="container-fluid main-content-wrapper">
         <div class="row">
             <!-- Sidebar -->
