@@ -205,7 +205,26 @@
                     <input type="password" class="form-control" id="loginPassword" required>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
-                <p>Belum punya akun? <a href="#" id="showRegister">Daftar sekarang</a></p>
+                <div class="d-flex justify-content-between">
+                    <p class="mb-0">Belum punya akun? <a href="#" id="showRegister">Daftar sekarang</a></p>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <p class="mb-0">Lupa password? <a href="#" id="showResetPassword">Reset Password</a></p>
+                </div>
+            </form>
+
+            <!-- Reset Password Form -->
+            <form id="resetPasswordForm" class="auth-form d-none">
+                <div class="mb-3 text-start">
+                    <label for="resetUsername" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="resetUsername" required>
+                </div>
+                <div class="mb-3 text-start">
+                    <label for="resetNewPassword" class="form-label">Password Baru</label>
+                    <input type="password" class="form-control" id="resetNewPassword" required>
+                </div>
+                <button type="submit" class="btn btn-warning w-100 mb-3">Reset Password</button>
+                <p>Kembali ke <a href="#" id="showLoginFromReset">Login</a></p>
             </form>
 
             <!-- Register Form -->
@@ -698,6 +717,25 @@
                 document.getElementById('authMessage').classList.add('d-none');
             });
 
+            // Tampilkan form reset password
+            document.getElementById('showResetPassword').addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('loginForm').classList.add('d-none');
+                document.getElementById('registerForm').classList.add('d-none');
+                document.getElementById('resetPasswordForm').classList.remove('d-none');
+                document.getElementById('authTitle').innerText = 'Reset Password';
+                document.getElementById('authMessage').classList.add('d-none');
+            });
+
+            // Kembali ke login dari form reset password
+            document.getElementById('showLoginFromReset').addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('resetPasswordForm').classList.add('d-none');
+                document.getElementById('loginForm').classList.remove('d-none');
+                document.getElementById('authTitle').innerText = 'Login';
+                document.getElementById('authMessage').classList.add('d-none');
+            });
+
             // Submit Form Login
             document.getElementById('loginForm').addEventListener('submit', async function(e) {
                 e.preventDefault();
@@ -721,6 +759,38 @@
                         document.getElementById('loggedInRole').innerText = `[${data.role}]`;
                         updateSidebarMenu();
                         showSection('pos-section'); // Default ke section POS setelah login
+                    } else {
+                        authMessage.innerText = data.error;
+                        authMessage.classList.remove('d-none');
+                    }
+                } catch (error) {
+                    // Error sudah ditangani oleh authFetch
+                }
+            });
+
+            // Submit Form Reset Password
+            document.getElementById('resetPasswordForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const username = document.getElementById('resetUsername').value;
+                const newPassword = document.getElementById('resetNewPassword').value;
+
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('new_password', newPassword);
+
+                try {
+                    const data = await authFetch('reset_password', 'POST', formData);
+                    const authMessage = document.getElementById('authMessage');
+                    if (data.success) {
+                        authMessage.classList.add('d-none');
+                        Swal.fire('Berhasil!', 'Password berhasil direset. Silakan login dengan password baru.', 'success');
+                        // Kembali ke form login
+                        document.getElementById('resetPasswordForm').classList.add('d-none');
+                        document.getElementById('loginForm').classList.remove('d-none');
+                        document.getElementById('authTitle').innerText = 'Login';
+                        document.getElementById('loginUsername').value = username;
+                        document.getElementById('loginPassword').value = '';
+                        document.getElementById('resetPasswordForm').reset();
                     } else {
                         authMessage.innerText = data.error;
                         authMessage.classList.remove('d-none');

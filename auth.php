@@ -121,6 +121,47 @@ switch ($action) {
         }
         break;
 
+    // Fungsionalitas Reset Password yang Baru
+    case 'reset_password':
+        // Ambil data dari POST
+        $username = $_POST['username'] ?? '';
+        $new_password = $_POST['new_password'] ?? '';
+
+        // Validasi input
+        if (empty($username) || empty($new_password)) {
+            echo json_encode(['success' => false, 'error' => 'Username dan password baru wajib diisi.']);
+            exit;
+        }
+        
+        // Cek apakah username ada
+        $stmt_check = $conn->prepare("SELECT id FROM users WHERE username = ?");
+        $stmt_check->bind_param("s", $username);
+        $stmt_check->execute();
+        $stmt_check->store_result();
+        
+        if ($stmt_check->num_rows === 0) {
+            echo json_encode(['success' => false, 'error' => 'Username tidak ditemukan.']);
+            $stmt_check->close();
+            exit;
+        }
+        $stmt_check->close();
+        
+        // Hash password baru
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+
+        // Update password di database
+        $stmt_update = $conn->prepare("UPDATE users SET password = ? WHERE username = ?");
+        $stmt_update->bind_param("ss", $hashed_password, $username);
+
+        if ($stmt_update->execute()) {
+            echo json_encode(['success' => true, 'message' => 'Password berhasil direset.']);
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Gagal mereset password: ' . $stmt_update->error]);
+        }
+        $stmt_update->close();
+        break;
+
+
     default:
         // Aksi tidak valid
         echo json_encode(['success' => false, 'error' => 'Aksi tidak valid']);
