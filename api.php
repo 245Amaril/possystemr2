@@ -2,8 +2,10 @@
 // File: api.php
 header('Content-Type: application/json'); // Pastikan ini ada di paling atas untuk output JSON
 
-// Memasukkan file koneksi database
-require 'db_connect.php'; // Pastikan file ini ada dan berisi koneksi $conn
+// Memasukkan file koneksi database dengan OOP
+require 'db_connect.php';
+$db = new Database();
+$conn = $db->getConnection();
 
 // Direktori untuk menyimpan gambar produk
 // PASTIKAN DIREKTORI INI ADA DAN MEMILIKI IZIN TULIS (e.g., chmod 775 atau 777 untuk testing)

@@ -6,8 +6,10 @@ header('Content-Type: application/json');
 // Mulai session PHP
 session_start();
 
-// Koneksi ke database
+// Koneksi ke database dengan OOP
 require 'db_connect.php';
+$db = new Database();
+$conn = $db->getConnection();
 
 // Ambil aksi dari parameter GET
 $action = $_GET['action'] ?? '';
